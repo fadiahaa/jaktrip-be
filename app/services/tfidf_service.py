@@ -8,7 +8,14 @@ from app.utils.stopwords import STOPWORDS_ID
 
 
 class TFIDFService:
-
+    SYNONYMS = {
+        "hewan": "satwa",
+        "binatang": "satwa",
+        "fauna": "satwa",
+        "pohon": "pepohonan",
+        "makanan": "kuliner",
+        "makan": "kuliner"
+    }
     # Membuat stemmer Bahasa Indonesia
     factory = StemmerFactory()
     stemmer = factory.create_stemmer()
@@ -42,7 +49,13 @@ class TFIDFService:
         # 5. Tokenisasi sederhana
         tokens = text.split()
 
-        # 6. Stopword removal
+        # 6. Normalisasi sinonim
+        tokens = [
+            TFIDFService.SYNONYMS.get(word, word)
+            for word in tokens
+        ]
+
+        # 7. Stopword removal
         tokens = [
             word
             for word in tokens
@@ -71,9 +84,19 @@ class TFIDFService:
         # 2. PREPROCESSING DESKRIPSI WISATA
         # ==========================================
 
+        # Catatan: nama_wisata sengaja TIDAK dimasukkan ke teks TF-IDF.
+        # Nama tempat adalah proper noun yang hampir selalu unik per
+        # dokumen, sehingga hanya menambah dimensi kata yang tidak
+        # relevan dengan preferensi user dan mengencerkan (dilute)
+        # nilai cosine similarity secara keseluruhan.
+        #
+        # kategori diulang 3x supaya diberi bobot lebih tinggi,
+        # karena kategori adalah sinyal paling kuat untuk mencocokkan
+        # preferensi user (mis. "alam", "kuliner", "sejarah").
         documents = [
             TFIDFService.preprocess(
-                wisata.deskripsi or ""
+                f"{(wisata.kategori + ' ') * 3}"
+                f"{wisata.deskripsi or ''}"
             )
             for wisata in wisata_list
         ]
@@ -88,15 +111,31 @@ class TFIDFService:
         # 4. TF-IDF
         # ==========================================
 
+        # sublinear_tf=True: pakai skala 1 + log(tf) alih-alih tf linear.
+        # Ini mengurangi dominasi kata yang berulang dan membuat skor
+        # similarity lebih representatif untuk dokumen pendek seperti
+        # deskripsi wisata.
         vectorizer = TfidfVectorizer(
             ngram_range=(1, 2),
-            stop_words=STOPWORDS_ID
+            stop_words=STOPWORDS_ID,
+            sublinear_tf=True,
+            smooth_idf=True
         )
 
         tfidf_matrix = vectorizer.fit_transform(
             documents
         )
+        features = vectorizer.get_feature_names_out()
 
+        query_values = tfidf_matrix[-1].toarray().flatten()
+
+        print("\n========== HASIL TF-IDF QUERY ==========")
+
+        for term, value in zip(features, query_values):
+            if value > 0:
+                print(f"{term}: {value:.4f}")
+
+        print("=========================================\n")
         # ==========================================
         # 5. PISAHKAN QUERY DAN DOKUMEN
         # ==========================================
@@ -124,6 +163,8 @@ class TFIDFService:
             wisata_list,
             similarities
         ):
+            if score < 0.02:
+                    continue
 
             hasil.append({
                 "id_wisata": wisata.id_wisata,
@@ -144,6 +185,9 @@ class TFIDFService:
                 ),
                 "similarity": float(score)
             })
+            
+        if not hasil:
+            return []
 
         # ==========================================
         # 8. RANKING
