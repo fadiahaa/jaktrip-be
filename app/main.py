@@ -1,7 +1,9 @@
+import os
 from fastapi import FastAPI
 from sqlalchemy import text
 
 from app.database.connection import engine
+from app.core.config import CORS_ORIGINS
 from app.routers.auth_router import router as auth_router
 from app.routers.wisata_router import router as wisata_router
 from app.routers.recommendation_router import router as recommendation_router
@@ -23,10 +25,7 @@ app.mount(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,3 +53,14 @@ def root():
         "message": "Backend Connected",
         "total_wisata": total
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host=os.getenv("HOST", "0.0.0.0"),
+        port=int(os.getenv("PORT", "8000")),
+        workers=int(os.getenv("WEB_CONCURRENCY", "1")),
+    )
