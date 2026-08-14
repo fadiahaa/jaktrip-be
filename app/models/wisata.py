@@ -29,7 +29,8 @@ class Wisata(Base):
             "Hiburan",
             "Kuliner",
             "Religi",
-            "Edukasi"
+            "Edukasi",
+            name="wisata_kategori_enum"
         )
     )
 
@@ -39,7 +40,8 @@ class Wisata(Base):
             "Jakarta Selatan",
             "Jakarta Barat",
             "Jakarta Timur",
-            "Jakarta Utara"
+            "Jakarta Utara",
+            name="wisata_wilayah_enum"
         )
     )
 
