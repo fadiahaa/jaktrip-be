@@ -1,3 +1,9 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from database import get_connection
 from pydantic import BaseModel
@@ -19,12 +25,21 @@ from fastapi import HTTPException
 app = FastAPI(
     title="Wisata Jakarta Recommendation API"
 )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+configured_cors_origins = os.getenv("CORS_ORIGINS", "")
+allow_origins = [
+    origin.strip().rstrip("/")
+    for origin in configured_cors_origins.split(",")
+    if origin.strip()
+]
+if not allow_origins:
+    allow_origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173"
-    ],
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
